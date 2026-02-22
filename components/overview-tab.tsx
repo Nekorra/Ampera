@@ -84,10 +84,42 @@ function ScoreGauge({ score }: { score: number }) {
   const normalizedScore = Math.max(0, Math.min(animatedScore, 100))
   const orbSize = 217
   const markerSize = 40
-  const markerRadius = orbSize / 2 - markerSize / 2 - 5
-  const markerAngle = ((-140 + (normalizedScore / 100) * 280) * Math.PI) / 180
-  const markerLeft = orbSize / 2 + Math.cos(markerAngle) * markerRadius - markerSize / 2
-  const markerTop = orbSize / 2 + Math.sin(markerAngle) * markerRadius - markerSize / 2
+
+  // Map score to the visible blue "waterline" height by area, which matches the Figma look
+  // more closely than a simple linear height fill.
+  const getBlueFillHeight = (scorePercent: number) => {
+    const fraction = Math.max(0, Math.min(scorePercent / 100, 1))
+    if (fraction === 0) return 0
+    if (fraction === 1) return orbSize
+
+    const r = orbSize / 2
+    const totalArea = Math.PI * r * r
+    const targetTopCapArea = totalArea * (1 - fraction)
+
+    const capArea = (h: number) => {
+      if (h <= 0) return 0
+      if (h >= 2 * r) return totalArea
+
+      const term = Math.max(0, 2 * r * h - h * h)
+      return r * r * Math.acos((r - h) / r) - (r - h) * Math.sqrt(term)
+    }
+
+    let low = 0
+    let high = orbSize
+    for (let i = 0; i < 22; i += 1) {
+      const mid = (low + high) / 2
+      if (capArea(mid) < targetTopCapArea) {
+        low = mid
+      } else {
+        high = mid
+      }
+    }
+
+    const topCapHeight = (low + high) / 2
+    return orbSize - topCapHeight
+  }
+
+  const blueFillHeight = getBlueFillHeight(normalizedScore)
 
   return (
     <div className="flex w-full flex-wrap items-center justify-center gap-8 xl:flex-nowrap">
@@ -101,7 +133,7 @@ function ScoreGauge({ score }: { score: number }) {
 
         <div
           className="absolute bottom-0 left-0 w-full overflow-hidden"
-          style={{ height: `${normalizedScore}%`, transition: "height 1.2s ease-out" }}
+          style={{ height: blueFillHeight, transition: "height 1.2s ease-out" }}
         >
           <div
             className="absolute left-0 rounded-full bg-[#0277FA]"
@@ -114,9 +146,8 @@ function ScoreGauge({ score }: { score: number }) {
           style={{
             width: markerSize,
             height: markerSize,
-            left: markerLeft,
-            top: markerTop,
-            transition: "left 1.2s ease-out, top 1.2s ease-out",
+            right: 18,
+            bottom: 34,
           }}
         />
       </div>

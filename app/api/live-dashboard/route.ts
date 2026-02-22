@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import type { Charger, ChargerStatus, Incident } from "@/lib/charger-data"
 
 export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
+export const maxDuration = 30
 
 type FleetStats = {
   totalChargers: number
