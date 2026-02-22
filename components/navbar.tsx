@@ -20,14 +20,12 @@ interface NavbarProps {
 export function Navbar({ activeTab, onTabChange, onSearchOpen }: NavbarProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-5">
-      <div className="flex min-w-0 items-center gap-5 lg:gap-7">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#3b3f66] bg-[#2a2f4d] p-2">
-          <img
-            src="/Ampera_Logo.webp"
-            alt="Ampera logo"
-            className="h-full w-full object-contain"
-          />
-        </div>
+      <div className="flex min-w-0 items-center gap-5 pl-2 sm:pl-3 lg:gap-7 xl:pl-4 2xl:pl-6">
+        <img
+          src="/Ampera_Logo.webp"
+          alt="Ampera logo"
+          className="h-16 w-16 shrink-0 object-contain"
+        />
 
         <nav className="inline-flex items-center rounded-full bg-[#20253f] p-1">
           {tabs.map((tab) => (

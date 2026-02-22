@@ -345,7 +345,7 @@ export function OverviewTab({ onChargerClick, onViewAllChargers }: OverviewTabPr
   const total = fleetStats.healthy + fleetStats.warning + fleetStats.critical
 
   return (
-    <div className="grid h-full items-start gap-11 xl:grid-cols-[360px_minmax(0,1fr)]">
+    <div className="grid h-full items-start gap-11 px-2 sm:px-3 xl:px-4 2xl:px-6 xl:grid-cols-[360px_minmax(0,1fr)]">
       <FleetMapPanel chargers={chargers} onChargerClick={onChargerClick} />
 
       <div className="flex min-h-0 flex-col xl:h-[644px] xl:max-w-[1080px] 2xl:h-[692px]">
