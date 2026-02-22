@@ -19,7 +19,7 @@ import { toast } from "sonner"
 type IncidentFilter = "all" | "warning" | "critical" | "resolved"
 
 export function IncidentsTab() {
-  const { incidents } = useDashboardData()
+  const { incidents, chargers } = useDashboardData()
   const [incidentList, setIncidentList] = useState<Incident[]>(incidents)
   const [filter, setFilter] = useState<IncidentFilter>("all")
   const [selectedId, setSelectedId] = useState<string>(incidents[0]?.id ?? "")
@@ -42,6 +42,9 @@ export function IncidentsTab() {
   }, [filter, incidentList])
 
   const selected = incidentList.find((i) => i.id === selectedId) ?? filtered[0]
+  const selectedCharger = selected
+    ? chargers.find((charger) => charger.id === selected.chargerId)
+    : undefined
 
   const handleAcknowledge = (id: string) => {
     setIncidentList((prev) =>
@@ -76,20 +79,54 @@ export function IncidentsTab() {
     { id: "resolved", label: "Resolved" },
   ]
 
-  const generateChartData = (incident: Incident) => {
-    const base = incident.metric === "voltage" ? 240 : 35
+  const generateChartData = (incident: Incident, charger?: (typeof chargers)[number]) => {
+    if (charger) {
+      const voltageSeries = charger.voltageHistory.length
+        ? charger.voltageHistory
+        : [charger.voltage]
+      const tempSeries = charger.tempHistory.length
+        ? charger.tempHistory
+        : [charger.temperature]
+      const pointCount = Math.max(voltageSeries.length, tempSeries.length)
+
+      return Array.from({ length: pointCount }, (_, i) => {
+        const voltage =
+          voltageSeries[i] ??
+          voltageSeries[voltageSeries.length - 1] ??
+          charger.voltage
+        const temperature =
+          tempSeries[i] ??
+          tempSeries[tempSeries.length - 1] ??
+          charger.temperature
+
+        return {
+          hour: `${i + 1}`,
+          voltage,
+          temperature,
+        }
+      })
+    }
+
+    const baseVoltage = incident.metric === "voltage" ? 240 : 236
+    const baseTemp = incident.metric === "temperature" ? 35 : 30
     const seed = incident.id
       .split("")
       .reduce((acc, char) => acc + char.charCodeAt(0), 0)
     return Array.from({ length: 24 }, (_, i) => {
-      const noise = ((Math.sin((seed + 1) * (i + 1) * 12.9898) * 43758.5453) % 1) - 0.5
-      const trend =
+      const voltageNoise = ((Math.sin((seed + 1) * (i + 1) * 12.9898) * 43758.5453) % 1) - 0.5
+      const tempNoise = ((Math.sin((seed + 11) * (i + 1) * 9.731) * 19341.331) % 1) - 0.5
+      const voltageTrend =
         incident.metric === "voltage"
-          ? base - i * ((base - incident.currentValue) / 24)
-          : base + i * ((incident.currentValue - base) / 24)
+          ? baseVoltage - i * ((baseVoltage - incident.currentValue) / 24)
+          : baseVoltage + voltageNoise * 1.5
+      const tempTrend =
+        incident.metric === "temperature"
+          ? baseTemp + i * ((incident.currentValue - baseTemp) / 24)
+          : baseTemp + tempNoise * 2
       return {
         hour: `${i}h`,
-        value: trend + (incident.metric === "voltage" ? noise * 3 : noise * 2),
+        voltage: voltageTrend + voltageNoise * 2.2,
+        temperature: tempTrend + tempNoise * 1.4,
       }
     })
   }
@@ -261,18 +298,29 @@ export function IncidentsTab() {
           {/* Chart */}
           <div className="mb-6 rounded-xl border border-border bg-secondary p-4">
             <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              {selected.metric === "voltage" ? "Voltage" : "Temperature"} Over
-              Time
+              Voltage & Temperature Over Time
             </h4>
             <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={generateChartData(selected)}>
+              <LineChart data={generateChartData(selected, selectedCharger)}>
                 <CartesianGrid stroke="#2a2a3a" strokeDasharray="3 3" />
                 <XAxis
                   dataKey="hour"
                   stroke="#666680"
                   tick={{ fontSize: 10 }}
                 />
-                <YAxis stroke="#666680" tick={{ fontSize: 10 }} />
+                <YAxis
+                  yAxisId="voltage"
+                  stroke="#666680"
+                  tick={{ fontSize: 10 }}
+                  domain={["auto", "auto"]}
+                />
+                <YAxis
+                  yAxisId="temp"
+                  orientation="right"
+                  stroke="#666680"
+                  tick={{ fontSize: 10 }}
+                  domain={["auto", "auto"]}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "#16161e",
@@ -282,25 +330,37 @@ export function IncidentsTab() {
                     fontSize: 12,
                   }}
                 />
-                <ReferenceLine
-                  y={selected.threshold}
-                  stroke="#ff4d4d"
-                  strokeDasharray="6 3"
-                  label={{
-                    value: "Threshold",
-                    position: "right",
-                    fill: "#ff4d4d",
-                    fontSize: 10,
-                  }}
-                />
+                {(selected.metric === "voltage" || selected.metric === "temperature") && (
+                  <ReferenceLine
+                    yAxisId={selected.metric === "voltage" ? "voltage" : "temp"}
+                    y={selected.threshold}
+                    stroke="#ff4d4d"
+                    strokeDasharray="6 3"
+                    label={{
+                      value: "Threshold",
+                      position: "right",
+                      fill: "#ff4d4d",
+                      fontSize: 10,
+                    }}
+                  />
+                )}
                 <Line
+                  yAxisId="voltage"
                   type="monotone"
-                  dataKey="value"
-                  stroke={
-                    selected.severity === "critical" ? "#ff4d4d" : "#f5a623"
-                  }
+                  dataKey="voltage"
+                  stroke="#3b82f6"
                   strokeWidth={2}
                   dot={false}
+                  name="Voltage (V)"
+                />
+                <Line
+                  yAxisId="temp"
+                  type="monotone"
+                  dataKey="temperature"
+                  stroke="#f5a623"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Temperature (C)"
                 />
               </LineChart>
             </ResponsiveContainer>

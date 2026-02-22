@@ -82,75 +82,44 @@ function ScoreGauge({ score }: { score: number }) {
 
   const healthLabel = animatedScore > 85 ? "Excellent" : animatedScore > 70 ? "Mostly Healthy" : animatedScore > 50 ? "Needs Attention" : "Critical"
   const normalizedScore = Math.max(0, Math.min(animatedScore, 100))
-  const orbSize = 217
-  const markerSize = 40
-
-  // Map score to the visible blue "waterline" height by area, which matches the Figma look
-  // more closely than a simple linear height fill.
-  const getBlueFillHeight = (scorePercent: number) => {
-    const fraction = Math.max(0, Math.min(scorePercent / 100, 1))
-    if (fraction === 0) return 0
-    if (fraction === 1) return orbSize
-
-    const r = orbSize / 2
-    const totalArea = Math.PI * r * r
-    const targetTopCapArea = totalArea * (1 - fraction)
-
-    const capArea = (h: number) => {
-      if (h <= 0) return 0
-      if (h >= 2 * r) return totalArea
-
-      const term = Math.max(0, 2 * r * h - h * h)
-      return r * r * Math.acos((r - h) / r) - (r - h) * Math.sqrt(term)
-    }
-
-    let low = 0
-    let high = orbSize
-    for (let i = 0; i < 22; i += 1) {
-      const mid = (low + high) / 2
-      if (capArea(mid) < targetTopCapArea) {
-        low = mid
-      } else {
-        high = mid
-      }
-    }
-
-    const topCapHeight = (low + high) / 2
-    return orbSize - topCapHeight
-  }
-
-  const blueFillHeight = getBlueFillHeight(normalizedScore)
+  const radius = 72
+  const strokeWidth = 32
+  const centerX = 94
+  const centerY = 98
+  const progressRatio = normalizedScore / 100
+  const arcLength = Math.PI * radius
+  const dashOffset = arcLength * (1 - progressRatio)
+  const gaugePath = `M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 0 1 ${centerX + radius} ${centerY}`
 
   return (
     <div className="flex w-full flex-wrap items-center justify-center gap-8 xl:flex-nowrap">
-      <div
-        className="relative shrink-0"
-        style={{ width: orbSize, height: orbSize }}
+      <svg
+        width="220"
+        height="132"
+        viewBox="0 0 220 132"
+        className="shrink-0"
         aria-label={`Health score ${animatedScore.toFixed(1)} percent`}
         role="img"
       >
-        <div className="absolute inset-0 rounded-full bg-[#343444]" />
-
-        <div
-          className="absolute bottom-0 left-0 w-full overflow-hidden"
-          style={{ height: blueFillHeight, transition: "height 1.2s ease-out" }}
-        >
-          <div
-            className="absolute left-0 rounded-full bg-[#0277FA]"
-            style={{ width: orbSize, height: orbSize, bottom: 0 }}
-          />
-        </div>
-
-        <div
-          className="absolute rounded-full bg-[#064D9D]"
-          style={{
-            width: markerSize,
-            height: markerSize,
-            right: 18,
-            bottom: 34,
-          }}
+        <path
+          d={gaugePath}
+          fill="none"
+          stroke="#343444"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
         />
-      </div>
+
+        <path
+          d={gaugePath}
+          fill="none"
+          stroke="#0277FA"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={arcLength}
+          strokeDashoffset={dashOffset}
+          style={{ transition: "stroke-dashoffset 1.2s ease-out" }}
+        />
+      </svg>
 
       <div>
         <p className="font-mono text-5xl font-semibold leading-none text-[#f3f5ff] 2xl:text-6xl">{animatedScore.toFixed(1)}%</p>
@@ -392,7 +361,7 @@ export function OverviewTab({ onChargerClick, onViewAllChargers }: OverviewTabPr
             </div>
           </div>
 
-          <div className="flex h-[244px] items-center justify-center rounded-[30px] border border-[#303558] bg-[#242944] px-8 py-3">
+          <div className="flex h-[244px] items-center justify-center rounded-[30px] border border-[#303558] bg-[#242944] px-8 py-6">
             <ScoreGauge score={fleetStats.healthScore} />
           </div>
         </div>
